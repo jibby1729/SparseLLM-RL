@@ -20,7 +20,8 @@ def main():
     print(f'total_params = {total_params}')
 
 
-    prompt = "Give me a description of the Banach fixed point Theorem. What does the theorem statement say and what does it mean intuitively."
+    prompt = """Find the global maximum value of f and global minimum value of f for f (x) = x^3 - 3x^2 + 20
+for x ∈ [−1, 3], if they exist"""
     messages = [{"role": "user", "content": prompt}]
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, enable_thinking=False)
     inputs = tokenizer([text], return_tensors="pt").to(device)
