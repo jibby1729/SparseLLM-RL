@@ -5,36 +5,47 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStream
 import torch
 
 def main():
-    device = torch.device("cuda")
-    print(f"Using device {device}")
+    # 1. Initialize the base model architecture
     model_name = "gpt2-medium"
+    print(f"Initializing base model: {model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=torch.float16) 
-    print(f"Loaded model {model_name} with {model.num_parameters()} parameters")
+    model = AutoModelForCausalLM.from_pretrained(model_name)
 
-    prompt = (
-        "There are infinitely many primes, and the proof begins with the following step: "
+    # 2. Load your trained weights
+    checkpoint_path = "checkpoints/step_600.pt"
+    print(f"Overwriting weights with checkpoint: {checkpoint_path}...")
+    
+    # Load the dictionary to CPU first to avoid memory issues
+    state_dict = torch.load(checkpoint_path, map_location="cpu")
+    
+    # Apply the weights. strict=False ignores the extra 'v_head' (value head) 
+    # that PPO adds but isn't part of the standard GPT-2 inference model.
+    model.load_state_dict(state_dict, strict=False)
+    print("✓ Checkpoint loaded successfully.")
+
+    # 3. Move to GPU and run inference
+    model.to("cuda")
+    model.eval()
+
+    input_text = "Despite much style flash and glitter, this french"
+    
+    # 1. Use tokenizer(...) instead of tokenizer.encode(...)
+    #    This returns a dictionary containing 'input_ids' AND 'attention_mask'
+    inputs = tokenizer(input_text, return_tensors="pt").to("cuda")
+    
+    print(f"Generating text for prompt: '{input_text}'")
+    
+    # 2. Pass both to generate
+    output = model.generate(
+        **inputs,  # Unpacks input_ids and attention_mask
+        max_length=64, 
+        num_return_sequences=1, 
+        do_sample=True,
+        pad_token_id=tokenizer.eos_token_id # Explicitly set pad_token_id to silence that specific warning too
     )
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
-
-    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-    generation_thread = threading.Thread(
-        target=model.generate,
-        kwargs=dict(
-            **inputs,
-            max_length= 512,
-            streamer=streamer,
-        ),
-    )
-    generation_thread.start()
-
-    generated_tokens = []
-    for token in streamer:
-        print(token, end="", flush=True)
-        generated_tokens.append(token)
-
-    generation_thread.join()
-    print()
+    print("-" * 40)
+    print(tokenizer.decode(output[0], skip_special_tokens=True))
+    print("-" * 40)
 
 if __name__ == "__main__":
     main()

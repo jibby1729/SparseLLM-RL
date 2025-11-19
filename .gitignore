@@ -1,0 +1,13 @@
+checkpoints/
+wandb/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+beamer
+ppo-gpt2-medium-sentiment-final/
+ppo-gpt2-sentiment-final/
